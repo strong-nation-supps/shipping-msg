@@ -67,7 +67,7 @@ app.post("/fulfillment", async (req, res) => {
     const payload = {
       phone_number: phone,
       template_name: "order_shipped",
-      template_language: "en",
+      template_language: "en_US",
 
       field_1: name,
       field_2: trackingNumber
