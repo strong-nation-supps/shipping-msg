@@ -66,7 +66,7 @@ app.post("/fulfillment", async (req, res) => {
     // 📲 WA payload (NO LINK)
     const payload = {
       phone_number: phone,
-      template_name: "order_shipped_sn",
+      template_name: "order_shipped",
       template_language: "en",
 
       field_1: name,
