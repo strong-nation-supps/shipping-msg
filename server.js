@@ -13,10 +13,10 @@ if (!TOKEN || !VENDOR_ID) {
   process.exit(1);
 }
 
-// 🧠 Duplicate protection (tracking based)
+// 🧠 Duplicate protection
 const sentTracking = new Set();
 
-// 🧹 cleanup
+// 🧹 Cleanup cache every 1 hour
 setInterval(() => {
   sentTracking.clear();
   console.log("🧹 Cache cleared");
@@ -29,52 +29,65 @@ app.get("/", (req, res) => {
 
 
 // ======================================
-// 📦 SHIPPING WEBHOOK (NO LINK)
+// 📦 SHIPPING WEBHOOK
 // ======================================
 app.post("/fulfillment", async (req, res) => {
   const data = req.body;
 
   try {
+    // Shopify ko instantly 200 OK
     res.sendStatus(200);
 
+    // Get tracking number
     const trackingNumber = data?.tracking_numbers?.[0];
 
-    // ❌ tracking nahi → skip
+    // ❌ No tracking → skip
     if (!trackingNumber) {
       console.log("⏳ No tracking yet");
       return;
     }
 
-    // ❌ duplicate → skip
-    if (sentTracking.has(trackingNumber)) {
-      console.log("⚠️ Already sent");
+    // Get order id / fulfillment id
+    const orderId = data?.order_id || data?.id || "unknown";
+
+    // Unique key = order + tracking
+    const uniqueKey = `${orderId}_${trackingNumber}`;
+
+    // ❌ Duplicate block
+    if (sentTracking.has(uniqueKey)) {
+      console.log("⚠️ Duplicate blocked:", uniqueKey);
       return;
     }
-    sentTracking.add(trackingNumber);
 
+    sentTracking.add(uniqueKey);
+
+    // Get customer phone
     const phoneRaw = data?.destination?.phone;
+
     if (!phoneRaw) {
       console.log("❌ No phone");
       return;
     }
 
+    // Format phone
     let phone = phoneRaw.replace(/\D/g, "");
     if (phone.length === 10) phone = "91" + phone;
 
+    // Get customer name
     const name = data?.destination?.name || "Customer";
 
-    // 📲 WA payload (NO LINK)
+    // 📲 WA payload
     const payload = {
       phone_number: phone,
       template_name: "order_shipped",
       template_language: "en_US",
-
       field_1: name,
       field_2: trackingNumber
     };
 
     console.log("📤 Sending shipping msg:", payload);
 
+    // Send WA template
     const response = await axios.post(
       `https://api.wamantra.com/api/${VENDOR_ID}/contact/send-template-message`,
       payload,
@@ -96,6 +109,7 @@ app.post("/fulfillment", async (req, res) => {
 
 // 🚀 START SERVER
 const PORT = process.env.PORT || 3000;
+
 app.listen(PORT, () => {
   console.log(`🚀 Server running on ${PORT}`);
 });
